@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from database import engine, Base, SessionLocal
@@ -10,16 +9,20 @@ from auth import (
     hash_password,
     verify_password,
     create_access_token,
-    decode_access_token,
 )
+from dependencies import get_current_user
+
 
 Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="CareerTrack API",
     description="Job and internship application tracking API",
     version="1.0.0",
 )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -28,8 +31,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-security = HTTPBearer()
-
 
 def get_db():
     db = SessionLocal()
@@ -37,41 +38,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
-    token = credentials.credentials
-
-    try:
-        payload = decode_access_token(token)
-    except ValueError:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token"
-        )
-
-    user_id = payload.get("sub")
-
-    if user_id is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token"
-        )
-
-    user = db.query(models.User).filter(
-        models.User.id == int(user_id)
-    ).first()
-
-    if user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
-
-    return user
 
 
 @app.get("/")
@@ -135,7 +101,10 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
 
-    if not verify_password(user.password, existing_user.password_hash):
+    if not verify_password(
+        user.password,
+        existing_user.password_hash
+    ):
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
@@ -149,11 +118,20 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
         "access_token": access_token,
         "token_type": "bearer"
     }
+
+
 @app.get("/users/me")
-def get_me(current_user: models.User = Depends(get_current_user)):
+def get_me(
+    current_user: models.User = Depends(get_current_user)
+):
     return {
         "id": current_user.id,
         "name": current_user.name,
         "email": current_user.email,
         "is_active": current_user.is_active,
     }
+
+
+from routers.applications import router as applications_router
+
+app.include_router(applications_router)
