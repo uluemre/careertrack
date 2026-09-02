@@ -1,10 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from database import engine, Base, SessionLocal
 import models
-from schemas import UserCreate
-from auth import hash_password
+from schemas import UserCreate, UserLogin, Token
+from auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    decode_access_token,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -14,6 +20,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
+security = HTTPBearer()
+
 
 def get_db():
     db = SessionLocal()
@@ -21,6 +29,41 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    token = credentials.credentials
+
+    try:
+        payload = decode_access_token(token)
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    user_id = payload.get("sub")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    user = db.query(models.User).filter(
+        models.User.id == int(user_id)
+    ).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return user
 
 
 @app.get("/")
@@ -69,4 +112,40 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
             "email": new_user.email,
             "is_active": new_user.is_active,
         }
+    }
+
+
+@app.post("/users/login", response_model=Token)
+def login_user(user: UserLogin, db: Session = Depends(get_db)):
+    existing_user = db.query(models.User).filter(
+        models.User.email == user.email
+    ).first()
+
+    if not existing_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    if not verify_password(user.password, existing_user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    access_token = create_access_token(
+        data={"sub": str(existing_user.id)}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+@app.get("/users/me")
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "is_active": current_user.is_active,
     }

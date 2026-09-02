@@ -1,4 +1,15 @@
+import os
+from datetime import datetime, timedelta, timezone
+
 import bcrypt
+from dotenv import load_dotenv
+from jose import JWTError, jwt
+
+load_dotenv()
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 def hash_password(password: str) -> str:
@@ -11,3 +22,36 @@ def verify_password(password: str, password_hash: str) -> bool:
     password_bytes = password.encode("utf-8")
     hash_bytes = password_hash.encode("utf-8")
     return bcrypt.checkpw(password_bytes, hash_bytes)
+
+
+def create_access_token(data: dict) -> str:
+    if not SECRET_KEY:
+        raise RuntimeError("JWT_SECRET_KEY is not configured")
+
+    to_encode = data.copy()
+
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def decode_access_token(token: str) -> dict:
+    if not SECRET_KEY:
+        raise RuntimeError("JWT_SECRET_KEY is not configured")
+
+    try:
+        return jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+    except JWTError:
+        raise ValueError("Invalid or expired token")
