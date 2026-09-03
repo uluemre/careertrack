@@ -36,6 +36,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
   const [statusFilter, setStatusFilter] = useState("All")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const [company, setCompany] = useState("")
   const [position, setPosition] = useState("")
@@ -80,7 +81,7 @@ function App() {
     }
 
     loadUser()
-  }, [accessToken])
+  }, [accessToken, statusFilter, searchQuery])
 
   useEffect(() => {
     if (!accessToken) {
@@ -93,7 +94,12 @@ function App() {
       setError("")
 
       try {
-        const data = await getApplications()
+        const data = await getApplications(
+          statusFilter === "All"
+            ? undefined
+            : (statusFilter as ApplicationStatus),
+          searchQuery
+        )
         setApplications(data)
       } catch (err) {
         setError(
@@ -107,8 +113,7 @@ function App() {
     }
 
     loadApplications()
-  }, [accessToken])
-
+  }, [accessToken, statusFilter, searchQuery])
   async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -761,7 +766,38 @@ function App() {
         <section className="applications-section">
           <h3>My Applications</h3>
           <div className="filter-bar">
+            <label htmlFor="application-search">
+              Search:
+            </label>
+            <input
+              id="application-search"
+              type="search"
+              placeholder="Company or position..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
             <label htmlFor="status-filter">
+              <div className="filter-bar">
+                <div className="form-group">
+                  <label htmlFor="application-search">
+                    Search applications
+                  </label>
+
+                  <input
+                    id="application-search"
+                    type="text"
+                    placeholder="Search by company or position..."
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                  />
+                </div>
+
+                <label htmlFor="status-filter">
+                  Filter by status:
+                </label>
+
+                {/* mevcut select'in burada */}
+              </div>
               Filter by status:
             </label>
 
@@ -780,36 +816,21 @@ function App() {
               <option value="Withdrawn">Withdrawn</option>
             </select>
           </div>
+
           {applicationsLoading ? (
             <div className="empty-state">
               <p>Loading applications...</p>
             </div>
           ) : applications.length === 0 ? (
             <div className="empty-state">
-              <h4>No applications yet</h4>
-              <p>
-                Add your first job or internship application above.
-              </p>
-            </div>
-          ) : applications.filter(
-            (application) =>
-              statusFilter === "All" ||
-              application.status === statusFilter
-          ).length === 0 ? (
-            <div className="empty-state">
               <h4>No matching applications</h4>
               <p>
-                There are no applications with the selected status.
+                There are no applications matching the selected filters.
               </p>
             </div>
           ) : (
-            applications
-              .filter(
-                (application) =>
-                  statusFilter === "All" ||
-                  application.status === statusFilter
-              )
-              .map((application) => (<div
+            applications.map((application) => (
+              <div
                 className="application-card"
                 key={application.id}
               >
@@ -856,9 +877,7 @@ function App() {
                     className="danger-button"
                     type="button"
                     onClick={() =>
-                      handleDeleteApplication(
-                        application.id
-                      )
+                      handleDeleteApplication(application.id)
                     }
                     disabled={loading}
                   >
@@ -866,12 +885,11 @@ function App() {
                   </button>
                 </div>
               </div>
-              ))
+            ))
           )}
         </section>
       </main>
     </div>
   )
 }
-
 export default App

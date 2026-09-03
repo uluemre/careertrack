@@ -64,10 +64,28 @@ export async function apiRequest<T>(
   return response.json()
 }
 
-export async function getApplications(): Promise<Application[]> {
-  return apiRequest<Application[]>("/applications", {
-    method: "GET",
-  })
+export async function getApplications(
+  status?: ApplicationStatus,
+  search?: string
+): Promise<Application[]> {
+  const params = new URLSearchParams()
+
+  if (status) {
+    params.set("status", status)
+  }
+
+  if (search?.trim()) {
+    params.set("search", search.trim())
+  }
+
+  const queryString = params.toString()
+
+  return apiRequest<Application[]>(
+    `/applications${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    }
+  )
 }
 
 export async function createApplication(
