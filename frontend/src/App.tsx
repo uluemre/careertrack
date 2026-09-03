@@ -765,56 +765,42 @@ function App() {
 
         <section className="applications-section">
           <h3>My Applications</h3>
+
           <div className="filter-bar">
-            <label htmlFor="application-search">
-              Search:
-            </label>
-            <input
-              id="application-search"
-              type="search"
-              placeholder="Company or position..."
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            <label htmlFor="status-filter">
-              <div className="filter-bar">
-                <div className="form-group">
-                  <label htmlFor="application-search">
-                    Search applications
-                  </label>
+            <div className="form-group">
+              <label htmlFor="application-search">
+                Search applications
+              </label>
 
-                  <input
-                    id="application-search"
-                    type="text"
-                    placeholder="Search by company or position..."
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                  />
-                </div>
+              <input
+                id="application-search"
+                type="search"
+                placeholder="Company or position..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </div>
 
-                <label htmlFor="status-filter">
-                  Filter by status:
-                </label>
+            <div className="form-group">
+              <label htmlFor="status-filter">
+                Filter by status:
+              </label>
 
-                {/* mevcut select'in burada */}
-              </div>
-              Filter by status:
-            </label>
-
-            <select
-              id="status-filter"
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value)
-              }
-            >
-              <option value="All">All</option>
-              <option value="Applied">Applied</option>
-              <option value="Interview">Interview</option>
-              <option value="Offer">Offer</option>
-              <option value="Rejected">Rejected</option>
-              <option value="Withdrawn">Withdrawn</option>
-            </select>
+              <select
+                id="status-filter"
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value)
+                }
+              >
+                <option value="All">All</option>
+                <option value="Applied">Applied</option>
+                <option value="Interview">Interview</option>
+                <option value="Offer">Offer</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Withdrawn">Withdrawn</option>
+              </select>
+            </div>
           </div>
 
           {applicationsLoading ? (
