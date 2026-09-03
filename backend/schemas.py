@@ -1,6 +1,15 @@
 from datetime import date, datetime
+from enum import Enum
 
 from pydantic import BaseModel, EmailStr, Field
+
+
+class ApplicationStatus(str, Enum):
+    APPLIED = "Applied"
+    INTERVIEW = "Interview"
+    OFFER = "Offer"
+    REJECTED = "Rejected"
+    WITHDRAWN = "Withdrawn"
 
 
 class UserCreate(BaseModel):
@@ -22,7 +31,7 @@ class Token(BaseModel):
 class ApplicationCreate(BaseModel):
     company: str = Field(min_length=1, max_length=200)
     position: str = Field(min_length=1, max_length=200)
-    status: str = Field(default="Applied", min_length=1, max_length=50)
+    status: ApplicationStatus = ApplicationStatus.APPLIED
     application_date: date | None = None
     notes: str | None = None
 
@@ -30,7 +39,7 @@ class ApplicationCreate(BaseModel):
 class ApplicationUpdate(BaseModel):
     company: str = Field(min_length=1, max_length=200)
     position: str = Field(min_length=1, max_length=200)
-    status: str = Field(min_length=1, max_length=50)
+    status: ApplicationStatus
     application_date: date | None = None
     notes: str | None = None
 
@@ -40,17 +49,10 @@ class ApplicationResponse(BaseModel):
     user_id: int
     company: str
     position: str
-    status: str
+    status: ApplicationStatus
     application_date: date | None
     notes: str | None
     created_at: datetime
 
     class Config:
         from_attributes = True
-
-class ApplicationUpdate(BaseModel):
-    company: str
-    position: str
-    status: str
-    application_date: date
-    notes: str | None = None

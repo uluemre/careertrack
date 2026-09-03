@@ -6,6 +6,7 @@ import {
   updateApplication,
   deleteApplication,
   type Application,
+  type ApplicationStatus,
 } from "./api"
 import "./styles.css"
 
@@ -20,7 +21,11 @@ function App() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-
+  const handleUnauthorized = () => {
+    localStorage.removeItem("access_token")
+    setAccessToken("")
+    setUser(null)
+  }
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
 
@@ -34,7 +39,7 @@ function App() {
 
   const [company, setCompany] = useState("")
   const [position, setPosition] = useState("")
-  const [status, setStatus] = useState("Applied")
+  const [status, setStatus] = useState<ApplicationStatus>("Applied")
   const [applicationDate, setApplicationDate] = useState("")
   const [notes, setNotes] = useState("")
 
@@ -55,16 +60,22 @@ function App() {
       try {
         const data = await apiRequest<User>("/users/me", {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
         })
 
         setUser(data)
-      } catch {
-        localStorage.removeItem("access_token")
-        setAccessToken("")
-        setUser(null)
+      } catch (err) {
+        const error = err as Error & { status?: number }
+
+        if (error.status === 401) {
+          handleUnauthorized()
+          return
+        }
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to get user information"
+        )
       }
     }
 
@@ -182,13 +193,17 @@ function App() {
     try {
       const data = await apiRequest<User>("/users/me", {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       })
 
       setUser(data)
     } catch (err) {
+      const error = err as Error & { status?: number }
+
+      if (error.status === 401) {
+        handleUnauthorized()
+        return
+      }
+
       setError(
         err instanceof Error
           ? err.message
@@ -632,6 +647,7 @@ function App() {
                     setCompany(event.target.value)
                   }
                   required
+                  minLength={2}
                 />
               </div>
 
@@ -648,6 +664,7 @@ function App() {
                     setPosition(event.target.value)
                   }
                   required
+                  minLength={2}
                 />
               </div>
 
@@ -660,7 +677,7 @@ function App() {
                   id="status"
                   value={status}
                   onChange={(event) =>
-                    setStatus(event.target.value)
+                    setStatus(event.target.value as ApplicationStatus)
                   }
                 >
                   <option value="Applied">
@@ -764,7 +781,9 @@ function App() {
             </select>
           </div>
           {applicationsLoading ? (
-            <p>Loading applications...</p>
+            <div className="empty-state">
+              <p>Loading applications...</p>
+            </div>
           ) : applications.length === 0 ? (
             <div className="empty-state">
               <h4>No applications yet</h4>
@@ -803,7 +822,9 @@ function App() {
 
                 <p>
                   <strong>Status:</strong>{" "}
-                  <span className="status-badge">
+                  <span
+                    className={`status-badge status-${application.status.toLowerCase()}`}
+                  >
                     {application.status}
                   </span>
                 </p>
