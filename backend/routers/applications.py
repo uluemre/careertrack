@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 import models
 from database import SessionLocal
 from dependencies import get_current_user
-from schemas import ApplicationCreate, ApplicationResponse, ApplicationUpdate
-
+from schemas import (
+    ApplicationCreate,
+    ApplicationResponse,
+    ApplicationStatus,
+    ApplicationUpdate,
+)
 
 router = APIRouter(
     prefix="/applications",
@@ -46,14 +50,29 @@ def create_application(
 
 @router.get("", response_model=list[ApplicationResponse])
 def get_applications(
+    status: ApplicationStatus | None = Query(default=None),
+    search: str | None = Query(default=None, min_length=1, max_length=100),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    applications = db.query(models.Application).filter(
+    query = db.query(models.Application).filter(
         models.Application.user_id == current_user.id
-    ).all()
+    )
 
-    return applications
+    if status is not None:
+        query = query.filter(models.Application.status == status)
+
+    if search is not None:
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            models.Application.company.ilike(search_term)
+            | models.Application.position.ilike(search_term)
+        )
+
+    return query.order_by(
+        models.Application.application_date.desc().nullslast(),
+        models.Application.created_at.desc()
+    ).all()
 
 
 @router.get("/{application_id}", response_model=ApplicationResponse)
