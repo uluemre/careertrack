@@ -388,3 +388,33 @@ button {
     margin: 0;
     color: #6b7280;
 }
+
+.application-detail-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.application-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.application-detail-header h3 {
+    margin: 0 0 8px;
+}
+
+.application-detail-header h4 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.application-detail-card p {
+    margin: 10px 0;
+}

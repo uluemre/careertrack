@@ -120,3 +120,13 @@ export async function deleteApplication(
     }
   )
 }
+export async function getApplication(
+  applicationId: number
+): Promise<Application> {
+  return apiRequest<Application>(
+    `/applications/${applicationId}`,
+    {
+      method: "GET",
+    }
+  )
+}

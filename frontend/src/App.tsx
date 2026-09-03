@@ -3,6 +3,7 @@ import {
   apiRequest,
   createApplication,
   getApplications,
+  getApplication,
   updateApplication,
   deleteApplication,
   type Application,
@@ -35,6 +36,8 @@ function App() {
 
   const [user, setUser] = useState<User | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
+  const [selectedApplication, setSelectedApplication] =
+    useState<Application | null>(null)
   const [statusFilter, setStatusFilter] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -333,7 +336,21 @@ function App() {
       setLoading(false)
     }
   }
+  async function handleViewApplication(applicationId: number) {
+    setMessage("")
+    setError("")
 
+    try {
+      const application = await getApplication(applicationId)
+      setSelectedApplication(application)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load application details"
+      )
+    }
+  }
   async function handleDeleteApplication(applicationId: number) {
     const confirmed = window.confirm(
       "Are you sure you want to delete this application?"
@@ -762,7 +779,53 @@ function App() {
             </div>
           </form>
         </div>
+        {selectedApplication && (
+          <section className="application-detail-card">
+            <div className="application-detail-header">
+              <div>
+                <h3>Application Details</h3>
+                <h4>{selectedApplication.company}</h4>
+              </div>
 
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setSelectedApplication(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <p>
+              <strong>Position:</strong>{" "}
+              {selectedApplication.position}
+            </p>
+
+            <p>
+              <strong>Status:</strong>{" "}
+              <span
+                className={`status-badge status-${selectedApplication.status.toLowerCase()}`}
+              >
+                {selectedApplication.status}
+              </span>
+            </p>
+
+            <p>
+              <strong>Application Date:</strong>{" "}
+              {selectedApplication.application_date}
+            </p>
+
+            <p>
+              <strong>Created At:</strong>{" "}
+              {new Date(selectedApplication.created_at).toLocaleString()}
+            </p>
+
+            <p>
+              <strong>Notes:</strong>{" "}
+              {selectedApplication.notes || "No notes added."}
+            </p>
+          </section>
+        )}
         <section className="applications-section">
           <h3>My Applications</h3>
 
@@ -849,6 +912,15 @@ function App() {
                 )}
 
                 <div className="application-actions">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() =>
+                      handleViewApplication(application.id)
+                    }
+                  >
+                    View Details
+                  </button>
                   <button
                     className="secondary-button"
                     type="button"
