@@ -130,3 +130,35 @@ export async function getApplication(
     }
   )
 }
+export type ApplicationNote = {
+  id: number
+  application_id: number
+  content: string
+  created_at: string
+}
+
+export async function getApplicationNotes(
+  applicationId: number
+): Promise<ApplicationNote[]> {
+  return apiRequest<ApplicationNote[]>(
+    `/applications/${applicationId}/notes`,
+    {
+      method: "GET",
+    }
+  )
+}
+
+export async function createApplicationNote(
+  applicationId: number,
+  content: string
+): Promise<ApplicationNote> {
+  return apiRequest<ApplicationNote>(
+    `/applications/${applicationId}/notes`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        content,
+      }),
+    }
+  )
+}

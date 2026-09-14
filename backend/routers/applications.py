@@ -6,6 +6,8 @@ from database import SessionLocal
 from dependencies import get_current_user
 from schemas import (
     ApplicationCreate,
+    ApplicationNoteCreate,
+    ApplicationNoteResponse,
     ApplicationResponse,
     ApplicationStatus,
     ApplicationUpdate,
@@ -121,7 +123,6 @@ def update_application(
 
     db.commit()
     db.refresh(existing_application)
-
     return existing_application
 
 
@@ -148,3 +149,67 @@ def delete_application(
     return {
         "message": "Application deleted successfully"
     }
+
+
+@router.get("/{application_id}/notes")
+def get_application_notes(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    application = db.query(models.Application).filter(
+        models.Application.id == application_id,
+        models.Application.user_id == current_user.id
+    ).first()
+
+    if application is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Application not found"
+        )
+
+    return db.query(models.ApplicationNote).filter(
+        models.ApplicationNote.application_id == application_id
+    ).order_by(
+        models.ApplicationNote.created_at.desc()
+    ).all()
+
+@router.post(
+    "/{application_id}/notes",
+    response_model=ApplicationNoteResponse
+)
+def create_application_note(
+    application_id: int,
+    note: ApplicationNoteCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    application = db.query(models.Application).filter(
+        models.Application.id == application_id,
+        models.Application.user_id == current_user.id
+    ).first()
+
+    if application is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Application not found"
+        )
+
+    content = note.content.strip()
+
+    if not content:
+        raise HTTPException(
+            status_code=400,
+            detail="Note content cannot be empty"
+        )
+
+    new_note = models.ApplicationNote(
+        application_id=application_id,
+        content=content,
+    )
+
+    db.add(new_note)
+    db.commit()
+    db.refresh(new_note)
+
+    return new_note

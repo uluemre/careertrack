@@ -56,3 +56,17 @@ class ApplicationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ApplicationNoteCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=5000)
+
+
+class ApplicationNoteResponse(BaseModel):
+    id: int
+    application_id: int
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

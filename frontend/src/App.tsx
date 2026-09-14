@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import "./styles.css"
 import {
   apiRequest,
   createApplication,
@@ -6,10 +7,12 @@ import {
   getApplication,
   updateApplication,
   deleteApplication,
+  getApplicationNotes,
+  createApplicationNote,
   type Application,
   type ApplicationStatus,
+  type ApplicationNote,
 } from "./api"
-import "./styles.css"
 
 type User = {
   id: number
@@ -40,7 +43,11 @@ function App() {
     useState<Application | null>(null)
   const [statusFilter, setStatusFilter] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
-
+  const [applicationNotes, setApplicationNotes] =
+    useState<ApplicationNote[]>([])
+  const [newNote, setNewNote] = useState("")
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [company, setCompany] = useState("")
   const [position, setPosition] = useState("")
   const [status, setStatus] = useState<ApplicationStatus>("Applied")
@@ -339,16 +346,61 @@ function App() {
   async function handleViewApplication(applicationId: number) {
     setMessage("")
     setError("")
+    setNotesLoading(true)
 
     try {
-      const application = await getApplication(applicationId)
+      const [application, notes] = await Promise.all([
+        getApplication(applicationId),
+        getApplicationNotes(applicationId),
+      ])
+
       setSelectedApplication(application)
+      setApplicationNotes(notes)
+      setNewNote("")
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : "Failed to load application details"
       )
+    } finally {
+      setNotesLoading(false)
+    }
+  }
+  async function handleCreateNote(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault()
+
+    if (!selectedApplication || !newNote.trim()) {
+      return
+    }
+
+    setMessage("")
+    setError("")
+    setNoteSubmitting(true)
+
+    try {
+      const createdNote = await createApplicationNote(
+        selectedApplication.id,
+        newNote
+      )
+
+      setApplicationNotes((currentNotes) => [
+        createdNote,
+        ...currentNotes,
+      ])
+
+      setNewNote("")
+      setMessage("Note added successfully")
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to add note"
+      )
+    } finally {
+      setNoteSubmitting(false)
     }
   }
   async function handleDeleteApplication(applicationId: number) {
@@ -790,7 +842,11 @@ function App() {
               <button
                 className="secondary-button"
                 type="button"
-                onClick={() => setSelectedApplication(null)}
+                onClick={() => {
+                  setSelectedApplication(null)
+                  setApplicationNotes([])
+                  setNewNote("")
+                }}
               >
                 Close
               </button>
@@ -817,13 +873,71 @@ function App() {
 
             <p>
               <strong>Created At:</strong>{" "}
-              {new Date(selectedApplication.created_at).toLocaleString()}
+              {new Date(
+                selectedApplication.created_at
+              ).toLocaleString()}
             </p>
 
             <p>
               <strong>Notes:</strong>{" "}
               {selectedApplication.notes || "No notes added."}
             </p>
+
+            <div className="application-notes-section">
+              <h4>Application Notes</h4>
+
+              <form onSubmit={handleCreateNote}>
+                <div className="form-group">
+                  <label htmlFor="application-note">
+                    Add a note
+                  </label>
+
+                  <textarea
+                    id="application-note"
+                    value={newNote}
+                    onChange={(event) =>
+                      setNewNote(event.target.value)
+                    }
+                    placeholder="Write a note about this application..."
+                    maxLength={5000}
+                    required
+                  />
+                </div>
+
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={noteSubmitting || !newNote.trim()}
+                >
+                  {noteSubmitting ? "Adding..." : "Add Note"}
+                </button>
+              </form>
+
+              <div className="notes-list">
+                <h4>Note History</h4>
+
+                {notesLoading ? (
+                  <p>Loading notes...</p>
+                ) : applicationNotes.length === 0 ? (
+                  <p>No notes added yet.</p>
+                ) : (
+                  applicationNotes.map((note) => (
+                    <div
+                      className="note-card"
+                      key={note.id}
+                    >
+                      <p>{note.content}</p>
+
+                      <small>
+                        {new Date(
+                          note.created_at
+                        ).toLocaleString()}
+                      </small>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </section>
         )}
         <section className="applications-section">

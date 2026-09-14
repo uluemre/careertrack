@@ -37,3 +37,24 @@ class Application(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class ApplicationNote(Base):
+    __tablename__ = "application_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id"),
+        nullable=False,
+        index=True,
+    )
+
+    content = Column(Text, nullable=False)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
