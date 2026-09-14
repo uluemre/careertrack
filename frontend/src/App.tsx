@@ -9,17 +9,13 @@ import {
   deleteApplication,
   getApplicationNotes,
   createApplicationNote,
+  updateProfile,
+  changePassword,
   type Application,
   type ApplicationStatus,
   type ApplicationNote,
+  type User,
 } from "./api"
-
-type User = {
-  id: number
-  name: string
-  email: string
-  is_active: boolean
-}
 
 function App() {
   const [name, setName] = useState("")
@@ -56,6 +52,15 @@ function App() {
 
   const [editingApplicationId, setEditingApplicationId] =
     useState<number | null>(null)
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [profileName, setProfileName] = useState("")
+  const [profileEmail, setProfileEmail] = useState("")
+
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
 
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
@@ -223,6 +228,99 @@ function App() {
         err instanceof Error
           ? err.message
           : "Failed to get user information"
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleStartEditProfile() {
+    if (!user) {
+      return
+    }
+
+    setProfileName(user.name)
+    setProfileEmail(user.email)
+    setIsEditingProfile(true)
+    setMessage("")
+    setError("")
+  }
+
+  function handleCancelEditProfile() {
+    setIsEditingProfile(false)
+    setMessage("")
+    setError("")
+  }
+
+  async function handleUpdateProfile(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault()
+
+    setMessage("")
+    setError("")
+    setLoading(true)
+
+    try {
+      const updatedUser = await updateProfile(profileName, profileEmail)
+
+      setUser(updatedUser)
+      setIsEditingProfile(false)
+      setMessage("Profile updated successfully")
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update profile"
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleStartChangePassword() {
+    setCurrentPassword("")
+    setNewPassword("")
+    setConfirmNewPassword("")
+    setIsChangingPassword(true)
+    setMessage("")
+    setError("")
+  }
+
+  function handleCancelChangePassword() {
+    setIsChangingPassword(false)
+    setMessage("")
+    setError("")
+  }
+
+  async function handleChangePassword(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault()
+
+    setMessage("")
+    setError("")
+
+    if (newPassword !== confirmNewPassword) {
+      setError("New password and confirmation do not match")
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      await changePassword(currentPassword, newPassword)
+
+      setIsChangingPassword(false)
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmNewPassword("")
+      setMessage("Password changed successfully")
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to change password"
       )
     } finally {
       setLoading(false)
@@ -595,7 +693,7 @@ function App() {
           <p className="error">{error}</p>
         )}
 
-        {user && (
+        {user && !isEditingProfile && !isChangingPassword && (
           <div className="profile-card">
             <h3>Profile</h3>
 
@@ -612,13 +710,158 @@ function App() {
               {user.is_active ? "Active" : "Inactive"}
             </p>
 
-            <button
-              className="secondary-button"
-              onClick={handleGetMe}
-              disabled={loading}
-            >
-              {loading ? "Loading..." : "Refresh Profile"}
-            </button>
+            <div className="form-actions">
+              <button
+                className="secondary-button"
+                onClick={handleGetMe}
+                disabled={loading}
+              >
+                {loading ? "Loading..." : "Refresh Profile"}
+              </button>
+
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleStartEditProfile}
+              >
+                Edit Profile
+              </button>
+
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleStartChangePassword}
+              >
+                Change Password
+              </button>
+            </div>
+          </div>
+        )}
+
+        {user && isEditingProfile && (
+          <div className="profile-card">
+            <h3>Edit Profile</h3>
+
+            <form onSubmit={handleUpdateProfile}>
+              <div className="form-group">
+                <label htmlFor="profile-name">Name</label>
+                <input
+                  id="profile-name"
+                  type="text"
+                  value={profileName}
+                  onChange={(event) =>
+                    setProfileName(event.target.value)
+                  }
+                  required
+                  minLength={2}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="profile-email">Email</label>
+                <input
+                  id="profile-email"
+                  type="email"
+                  value={profileEmail}
+                  onChange={(event) =>
+                    setProfileEmail(event.target.value)
+                  }
+                  required
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Saving..." : "Save Changes"}
+                </button>
+
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={handleCancelEditProfile}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {user && isChangingPassword && (
+          <div className="profile-card">
+            <h3>Change Password</h3>
+
+            <form onSubmit={handleChangePassword}>
+              <div className="form-group">
+                <label htmlFor="current-password">
+                  Current Password
+                </label>
+                <input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) =>
+                    setCurrentPassword(event.target.value)
+                  }
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="new-password">New Password</label>
+                <input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) =>
+                    setNewPassword(event.target.value)
+                  }
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="confirm-new-password">
+                  Confirm New Password
+                </label>
+                <input
+                  id="confirm-new-password"
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(event) =>
+                    setConfirmNewPassword(event.target.value)
+                  }
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Saving..." : "Change Password"}
+                </button>
+
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={handleCancelChangePassword}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         )}
 

@@ -130,6 +130,36 @@ export async function getApplication(
     }
   )
 }
+export type User = {
+  id: number
+  name: string
+  email: string
+  is_active: boolean
+}
+
+export async function updateProfile(
+  name: string,
+  email: string
+): Promise<User> {
+  return apiRequest<User>("/users/me", {
+    method: "PUT",
+    body: JSON.stringify({ name, email }),
+  })
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>("/users/me/password", {
+    method: "PUT",
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  })
+}
+
 export type ApplicationNote = {
   id: number
   application_id: number

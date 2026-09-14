@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from database import engine, Base, SessionLocal
 import models
-from schemas import UserCreate, UserLogin, Token
+from schemas import UserCreate, UserLogin, Token, UserUpdate, PasswordChange
 from auth import (
     hash_password,
     verify_password,
@@ -129,6 +129,71 @@ def get_me(
         "name": current_user.name,
         "email": current_user.email,
         "is_active": current_user.is_active,
+    }
+
+
+@app.put("/users/me")
+def update_me(
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    existing_user = db.query(models.User).filter(
+        models.User.email == user_update.email,
+        models.User.id != current_user.id,
+    ).first()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered"
+        )
+
+    user = db.query(models.User).filter(
+        models.User.id == current_user.id
+    ).first()
+
+    user.name = user_update.name
+    user.email = user_update.email
+
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "is_active": user.is_active,
+    }
+
+
+@app.put("/users/me/password")
+def change_password(
+    password_change: PasswordChange,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not verify_password(
+        password_change.current_password,
+        current_user.password_hash
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Current password is incorrect"
+        )
+
+    user = db.query(models.User).filter(
+        models.User.id == current_user.id
+    ).first()
+
+    user.password_hash = hash_password(
+        password_change.new_password
+    )
+
+    db.commit()
+
+    return {
+        "message": "Password updated successfully"
     }
 
 

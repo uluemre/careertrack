@@ -23,6 +23,16 @@ class UserLogin(BaseModel):
     password: str = Field(min_length=8, max_length=72)
 
 
+class UserUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    email: EmailStr
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=8, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
