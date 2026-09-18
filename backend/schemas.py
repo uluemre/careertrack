@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class ApplicationStatus(str, Enum):
@@ -31,6 +31,10 @@ class UserUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str = Field(min_length=8, max_length=72)
     new_password: str = Field(min_length=8, max_length=72)
+
+
+class AccountDeactivate(BaseModel):
+    password: str = Field(min_length=8, max_length=72)
 
 
 class Token(BaseModel):
@@ -64,8 +68,7 @@ class ApplicationResponse(BaseModel):
     notes: str | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ApplicationNoteCreate(BaseModel):
@@ -78,5 +81,4 @@ class ApplicationNoteResponse(BaseModel):
     content: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

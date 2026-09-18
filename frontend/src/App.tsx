@@ -11,11 +11,13 @@ import {
   createApplicationNote,
   updateProfile,
   changePassword,
+  deactivateAccount,
   type Application,
   type ApplicationStatus,
   type ApplicationNote,
   type User,
 } from "./api"
+import ApplicationBoard from "./components/ApplicationBoard"
 
 function App() {
   const [name, setName] = useState("")
@@ -39,6 +41,7 @@ function App() {
     useState<Application | null>(null)
   const [statusFilter, setStatusFilter] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
+  const [viewMode, setViewMode] = useState<"list" | "board">("list")
   const [applicationNotes, setApplicationNotes] =
     useState<ApplicationNote[]>([])
   const [newNote, setNewNote] = useState("")
@@ -61,6 +64,9 @@ function App() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
+
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [deactivatePassword, setDeactivatePassword] = useState("")
 
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
@@ -327,6 +333,57 @@ function App() {
     }
   }
 
+  function handleStartDeactivate() {
+    setDeactivatePassword("")
+    setIsDeactivating(true)
+    setMessage("")
+    setError("")
+  }
+
+  function handleCancelDeactivate() {
+    setIsDeactivating(false)
+    setMessage("")
+    setError("")
+  }
+
+  async function handleDeactivateAccount(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault()
+
+    const confirmed = window.confirm(
+      "Are you sure you want to deactivate your account? You will be logged out and will not be able to log back in."
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setMessage("")
+    setError("")
+    setLoading(true)
+
+    try {
+      await deactivateAccount(deactivatePassword)
+
+      localStorage.removeItem("access_token")
+      setAccessToken("")
+      setUser(null)
+      setApplications([])
+      setIsDeactivating(false)
+      setDeactivatePassword("")
+      setMessage("Account deactivated successfully")
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to deactivate account"
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleCreateApplication(
     event: React.FormEvent<HTMLFormElement>
   ) {
@@ -539,6 +596,48 @@ function App() {
     }
   }
 
+  async function handleBoardStatusChange(
+    application: Application,
+    newStatus: ApplicationStatus
+  ) {
+    const previousApplications = applications
+
+    setApplications((currentApplications) =>
+      currentApplications.map((current) =>
+        current.id === application.id
+          ? { ...current, status: newStatus }
+          : current
+      )
+    )
+
+    setError("")
+
+    try {
+      const updatedApplication = await updateApplication(application.id, {
+        company: application.company,
+        position: application.position,
+        status: newStatus,
+        application_date: application.application_date,
+        notes: application.notes,
+      })
+
+      setApplications((currentApplications) =>
+        currentApplications.map((current) =>
+          current.id === updatedApplication.id
+            ? updatedApplication
+            : current
+        )
+      )
+    } catch (err) {
+      setApplications(previousApplications)
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update application status"
+      )
+    }
+  }
+
   function handleLogout() {
     localStorage.removeItem("access_token")
     setAccessToken("")
@@ -693,7 +792,10 @@ function App() {
           <p className="error">{error}</p>
         )}
 
-        {user && !isEditingProfile && !isChangingPassword && (
+        {user &&
+          !isEditingProfile &&
+          !isChangingPassword &&
+          !isDeactivating && (
           <div className="profile-card">
             <h3>Profile</h3>
 
@@ -733,6 +835,14 @@ function App() {
                 onClick={handleStartChangePassword}
               >
                 Change Password
+              </button>
+
+              <button
+                className="danger-button"
+                type="button"
+                onClick={handleStartDeactivate}
+              >
+                Deactivate Account
               </button>
             </div>
           </div>
@@ -865,6 +975,53 @@ function App() {
           </div>
         )}
 
+        {user && isDeactivating && (
+          <div className="profile-card">
+            <h3>Deactivate Account</h3>
+
+            <p>
+              Deactivating your account will log you out and prevent
+              you from logging back in. This action requires your
+              password to confirm.
+            </p>
+
+            <form onSubmit={handleDeactivateAccount}>
+              <div className="form-group">
+                <label htmlFor="deactivate-password">Password</label>
+                <input
+                  id="deactivate-password"
+                  type="password"
+                  value={deactivatePassword}
+                  onChange={(event) =>
+                    setDeactivatePassword(event.target.value)
+                  }
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  className="danger-button"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? "Deactivating..." : "Deactivate Account"}
+                </button>
+
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={handleCancelDeactivate}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         <h3>Application Statistics</h3>
 
         <div className="statistics-grid">
@@ -935,6 +1092,54 @@ function App() {
             </p>
           </div>
         </div>
+
+        {applications.length > 0 && (
+          <div className="statistics-grid">
+            <div className="stat-card">
+              <p className="stat-card-title">Interview Rate</p>
+              <p className="stat-card-value">
+                {Math.round(
+                  (applications.filter(
+                    (application) =>
+                      application.status === "Interview"
+                  ).length /
+                    applications.length) *
+                    100
+                )}
+                %
+              </p>
+            </div>
+
+            <div className="stat-card">
+              <p className="stat-card-title">Offer Rate</p>
+              <p className="stat-card-value">
+                {Math.round(
+                  (applications.filter(
+                    (application) => application.status === "Offer"
+                  ).length /
+                    applications.length) *
+                    100
+                )}
+                %
+              </p>
+            </div>
+
+            <div className="stat-card">
+              <p className="stat-card-title">Rejection Rate</p>
+              <p className="stat-card-value">
+                {Math.round(
+                  (applications.filter(
+                    (application) =>
+                      application.status === "Rejected"
+                  ).length /
+                    applications.length) *
+                    100
+                )}
+                %
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="form-card">
           <h3>
@@ -1184,7 +1389,35 @@ function App() {
           </section>
         )}
         <section className="applications-section">
-          <h3>My Applications</h3>
+          <div className="applications-section-header">
+            <h3>My Applications</h3>
+
+            <div className="view-toggle">
+              <button
+                className={
+                  viewMode === "list"
+                    ? "primary-button"
+                    : "secondary-button"
+                }
+                type="button"
+                onClick={() => setViewMode("list")}
+              >
+                List
+              </button>
+
+              <button
+                className={
+                  viewMode === "board"
+                    ? "primary-button"
+                    : "secondary-button"
+                }
+                type="button"
+                onClick={() => setViewMode("board")}
+              >
+                Board
+              </button>
+            </div>
+          </div>
 
           <div className="filter-bar">
             <div className="form-group">
@@ -1234,6 +1467,11 @@ function App() {
                 There are no applications matching the selected filters.
               </p>
             </div>
+          ) : viewMode === "board" ? (
+            <ApplicationBoard
+              applications={applications}
+              onStatusChange={handleBoardStatusChange}
+            />
           ) : (
             applications.map((application) => (
               <div

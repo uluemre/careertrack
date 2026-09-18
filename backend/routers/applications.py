@@ -54,6 +54,8 @@ def create_application(
 def get_applications(
     status: ApplicationStatus | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=100),
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -74,7 +76,7 @@ def get_applications(
     return query.order_by(
         models.Application.application_date.desc().nullslast(),
         models.Application.created_at.desc()
-    ).all()
+    ).offset(offset).limit(limit).all()
 
 
 @router.get("/{application_id}", response_model=ApplicationResponse)
@@ -151,7 +153,7 @@ def delete_application(
     }
 
 
-@router.get("/{application_id}/notes")
+@router.get("/{application_id}/notes", response_model=list[ApplicationNoteResponse])
 def get_application_notes(
     application_id: int,
     db: Session = Depends(get_db),

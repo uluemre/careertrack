@@ -1,4 +1,5 @@
-const API_BASE_URL = "http://127.0.0.1:8000"
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
 
 export type ApplicationStatus =
   | "Applied"
@@ -157,6 +158,15 @@ export async function changePassword(
       current_password: currentPassword,
       new_password: newPassword,
     }),
+  })
+}
+
+export async function deactivateAccount(
+  password: string
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>("/users/me/deactivate", {
+    method: "PUT",
+    body: JSON.stringify({ password }),
   })
 }
 

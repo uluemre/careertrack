@@ -1,10 +1,19 @@
+import os
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from database import engine, Base, SessionLocal
 import models
-from schemas import UserCreate, UserLogin, Token, UserUpdate, PasswordChange
+from schemas import (
+    UserCreate,
+    UserLogin,
+    Token,
+    UserUpdate,
+    PasswordChange,
+    AccountDeactivate,
+)
 from auth import (
     hash_password,
     verify_password,
@@ -23,9 +32,17 @@ app = FastAPI(
 )
 
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:5173"
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -108,6 +125,12 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
+        )
+
+    if not existing_user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Account is deactivated"
         )
 
     access_token = create_access_token(
@@ -194,6 +217,34 @@ def change_password(
 
     return {
         "message": "Password updated successfully"
+    }
+
+
+@app.put("/users/me/deactivate")
+def deactivate_me(
+    account_deactivate: AccountDeactivate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not verify_password(
+        account_deactivate.password,
+        current_user.password_hash
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Password is incorrect"
+        )
+
+    user = db.query(models.User).filter(
+        models.User.id == current_user.id
+    ).first()
+
+    user.is_active = False
+
+    db.commit()
+
+    return {
+        "message": "Account deactivated successfully"
     }
 
 
